@@ -1,20 +1,18 @@
 import React, { Component } from 'react';
-import { Grid, Icon, List, Image, Button, Divider } from 'semantic-ui-react';
+import { Grid, Icon, List, Image, Button } from 'semantic-ui-react';
 import DropZone from 'react-dropzone';
+import { fetchResults } from '../lib/common';
 
 class Dragger extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      accept: '.xlsx',
-      excelName: '',
+      accept: '.json',
+      dataJsonFile: {},
       jsonName: '',
-      instruction: 'Import EXCEL file first',
-      fileList: [],
+      instruction: 'Import JSON file',
       disableDropzone: false,
-      buttonSubmitLoading: false,
-      buttonSubmitDisable: false,
-      hasResult: false,
+      buttonSubmitLoading: false
     }
     this.handleDrop = this.handleDrop.bind(this);
   }
@@ -27,45 +25,46 @@ class Dragger extends Component {
     return name;
   }
 
-  handleDrop = (file) => {
-    if (this.state.accept === '.xlsx') {
-      this.setState({
-        excelName: file[0].name,
-        accept: '.json',
-        instruction: 'Then import JSON file',
-        fileList: [...this.state.fileList, file]
-      })
-    } else {
-      this.setState(({fileList}) => ({
-        jsonName: file[0].name,
-        instruction: 'Can not import more file',
-        fileList: [...fileList, file],
-        disableDropzone: true
-      }))
-    }
+  handleDrop = (acceptedFiles) => {
+    acceptedFiles.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataJsonFile = JSON.parse(reader.result);
+        this.setState({
+          dataJsonFile,
+          instruction: 'Can not import more file',
+          disableDropzone: true,
+          jsonName: file.name
+        })
+      };
+      reader.onabort = () => console.log('file reading was aborted');
+      reader.onerror = () => console.log('file reading has failed');
+
+      reader.readAsBinaryString(file);
+    });
   }
 
   handleButtonSubmit = () => {
+    const { dataJsonFile, jsonName } = this.state;
     this.setState({
       buttonSubmitLoading: true
     })
     setTimeout(() => {
       this.setState({
-        buttonSubmitLoading: false,
-        hasResult: true,
-        buttonSubmitDisable: true
+        buttonSubmitLoading: false
       })
-    }, 1000)
+      fetchResults(dataJsonFile, jsonName);
+    }, 300)
   }
 
   render() {
-    const { fileList, accept, disableDropzone, instruction, excelName, jsonName, buttonSubmitLoading, buttonSubmitDisable, hasResult } = this.state;
+    const { accept, disableDropzone, instruction, jsonName, buttonSubmitLoading } = this.state;
     return (
       <div>
         <Grid>
           <Grid.Column width={5}></Grid.Column>
           <Grid.Column width={6}>
-            <DropZone 
+            <DropZone
               id="dropzone"
               onDropAccepted={this.handleDrop}
               accept={accept}
@@ -77,34 +76,23 @@ class Dragger extends Component {
               <p id="instruction">{instruction}</p>
             </DropZone>
             {
-              fileList.length !== 0 && <List divided verticalAlign='middle'>
-                {excelName !== '' && <List.Item>
-                  <Image size='mini' spaced src='/excel.svg' />
-                  <List.Content><List.Header>{this.convertName(excelName)}</List.Header></List.Content>
-                </List.Item>}
-                {jsonName !== '' && <List.Item>
-                  <Image size='mini' spaced src='/json.svg' />
-                  <List.Content><List.Header>{this.convertName(jsonName)}</List.Header></List.Content>
-                </List.Item>}
-              </List>
+              jsonName !== '' && <div>
+                <List divided verticalAlign='middle'>
+                  <List.Item>
+                    <Image size='mini' spaced src='/json.svg' />
+                    <List.Content><List.Header>{this.convertName(jsonName)}</List.Header></List.Content>
+                  </List.Item>
+                </List>
+                <Button
+                  loading={buttonSubmitLoading}
+                  fluid
+                  style={{backgroundColor: "#4183c4", color: "#fff"}}
+                  onClick={this.handleButtonSubmit}
+                >
+                  Submit
+                </Button>
+              </div>
             }
-            {
-              disableDropzone && <Button
-                loading={buttonSubmitLoading}
-                disabled={buttonSubmitDisable}
-                fluid
-                style={{backgroundColor: "#4183c4", color: "#fff"}}
-                onClick={this.handleButtonSubmit}
-              >
-                Submit
-              </Button>
-            }
-            {hasResult && <div><Divider horizontal>Choose action</Divider>
-            <Button.Group fluid>
-              <Button color="instagram">View</Button>
-              <Button.Or />
-              <Button positive>Download</Button>
-            </Button.Group></div>}
           </Grid.Column>
           <Grid.Column width={5}></Grid.Column>
         </Grid>

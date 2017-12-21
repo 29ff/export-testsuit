@@ -8,6 +8,7 @@ body {
   width: 100%!important;
   text-align: center;
   background-color: #fafafa;
+  margin-bottom: 20px;
 }
 
 #dropzone:hover {
